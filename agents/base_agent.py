@@ -108,7 +108,7 @@ class BaseDetectionAgent(ABC):
         docstring below) -- adjust the parsing here if you change the
         prompt's expected output format.
         """
-      from crewai import Agent, Task, Crew  # deferred import
+        from crewai import Agent, Task, Crew  # deferred import
 
         # Workaround for a known CrewAI bug (crewAIInc/crewAI #5886): it
         # injects an Anthropic-only prompt-caching field into every
