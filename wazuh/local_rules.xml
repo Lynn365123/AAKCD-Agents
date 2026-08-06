@@ -1,0 +1,86 @@
+<group name="aakcd,">
+
+  <!-- Base rule: catches any alert produced by an AAKCD detection agent.
+       AAKCD alerts are recognisable by the nested data.mitre.tactic field,
+       which no other default Wazuh log source produces. Wazuh's built-in
+       "json" decoder auto-wraps the whole incoming JSON object under a
+       "data" field, so our own schema's top-level "data" key becomes
+       data.* here -- e.g. data.severity, data.mitre.technique. -->
+  <rule id="100100" level="3">
+    <decoded_as>json</decoded_as>
+    <field name="category" type="pcre2">.+</field>
+    <description>AAKCD: alert received from an AAKCD detection agent</description>
+    <group>aakcd_alert,</group>
+  </rule>
+
+  <!-- One child rule per agent/technique, each carrying its own MITRE ATT&CK tag -->
+
+  <rule id="100101" level="6">
+    <if_sid>100100</if_sid>
+    <field name="mitre.technique" type="pcre2">^T1046$</field>
+    <description>AAKCD Recon Agent: $(description)</description>
+    <mitre>
+      <id>T1046</id>
+    </mitre>
+    <group>aakcd_recon,attack,</group>
+  </rule>
+
+  <rule id="100102" level="6">
+    <if_sid>100100</if_sid>
+    <field name="mitre.technique" type="pcre2">^T1566\.002$</field>
+    <description>AAKCD Delivery Agent: $(description)</description>
+    <mitre>
+      <id>T1566.002</id>
+    </mitre>
+    <group>aakcd_delivery,attack,</group>
+  </rule>
+
+  <rule id="100103" level="6">
+    <if_sid>100100</if_sid>
+    <field name="mitre.technique" type="pcre2">^T1027$</field>
+    <description>AAKCD Exploitation Agent: $(description)</description>
+    <mitre>
+      <id>T1027</id>
+    </mitre>
+    <group>aakcd_exploitation,attack,</group>
+  </rule>
+
+  <rule id="100104" level="6">
+    <if_sid>100100</if_sid>
+    <field name="mitre.technique" type="pcre2">^T1053\.005$</field>
+    <description>AAKCD Installation Agent: $(description)</description>
+    <mitre>
+      <id>T1053.005</id>
+    </mitre>
+    <group>aakcd_installation,attack,</group>
+  </rule>
+
+  <rule id="100105" level="6">
+    <if_sid>100100</if_sid>
+    <field name="mitre.technique" type="pcre2">^T1071\.001$</field>
+    <description>AAKCD C2 Agent: $(description)</description>
+    <mitre>
+      <id>T1071.001</id>
+    </mitre>
+    <group>aakcd_c2,attack,</group>
+  </rule>
+
+  <!-- Coordinator alerts carry multiple comma-separated techniques rather than
+       one, so it gets its own match on category instead of a single technique -->
+  <rule id="100106" level="10">
+    <if_sid>100100</if_sid>
+    <field name="category" type="pcre2">^kill_chain_correlation$</field>
+    <description>AAKCD Coordinator: correlated multi-stage attack on $(target_host)</description>
+    <group>aakcd_coordinator,attack,</group>
+  </rule>
+
+  <!-- Escalate to Wazuh's own high-severity band when our agents' severity
+       score (0-16 scale, matches Wazuh's own) is 12 or higher -->
+  <rule id="100110" level="12">
+    <if_sid>100101,100102,100103,100104,100105,100106</if_sid>
+    <field name="severity" type="pcre2">^1[2-6]$</field>
+    <description>AAKCD high-severity alert (severity $(severity)): $(description)</description>
+    <group>aakcd_high_severity,</group>
+  </rule>
+
+</group>
