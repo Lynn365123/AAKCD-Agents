@@ -108,7 +108,15 @@ class BaseDetectionAgent(ABC):
         docstring below) -- adjust the parsing here if you change the
         prompt's expected output format.
         """
-        from crewai import Agent, Task, Crew  # deferred import
+      from crewai import Agent, Task, Crew  # deferred import
+
+        # Workaround for a known CrewAI bug (crewAIInc/crewAI #5886): it
+        # injects an Anthropic-only prompt-caching field into every
+        # request's messages, which non-Anthropic providers like Groq
+        # reject outright ("property 'cache_breakpoint' is unsupported").
+        # No-op the function that adds it until CrewAI ships a real fix.
+        import crewai.llms.cache as _crewai_cache
+        _crewai_cache.mark_cache_breakpoint = lambda msg: msg
 
         analyst = Agent(
             role=f"{self.agent_name} threat analyst",
