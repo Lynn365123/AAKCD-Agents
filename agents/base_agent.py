@@ -78,18 +78,26 @@ class BaseDetectionAgent(ABC):
     # ------------------------------------------------------------------
 
     def _get_llm(self):
-        """Lazily construct the Gemini-backed CrewAI LLM. Requires
-        GEMINI_API_KEY to be set (see .env.example)."""
+        """Lazily construct the Groq-backed CrewAI LLM. Requires
+        GROQ_API_KEY to be set (see .env.example).
+
+        NOTE: this project originally targeted Gemini, but as of August 2026
+        Google's newly-issued "AQ." auth-format API keys are broken against
+        both the legacy and the new Interactions API endpoints (confirmed
+        via direct REST testing and matching multiple live reports on
+        Google's own AI developer forum). Groq was swapped in as a working,
+        free-tier replacement -- same CrewAI LLM interface, no other code
+        changes needed. Revisit Gemini once Google resolves the bug."""
         from crewai import LLM  # deferred import, see module docstring
 
-        api_key = os.environ.get("GEMINI_API_KEY")
+        api_key = os.environ.get("GROQ_API_KEY")
         if not api_key:
             raise RuntimeError(
-                "GEMINI_API_KEY is not set. Copy .env.example to .env, "
+                "GROQ_API_KEY is not set. Copy .env.example to .env, "
                 "fill in your key, and load it (e.g. `python-dotenv`) "
                 "before running an agent."
             )
-        return LLM(model="gemini/gemini-2.5-flash", api_key=api_key)
+        return LLM(model="groq/llama-3.3-70b-versatile", api_key=api_key)
 
     def reason_with_llm(self, telemetry: Any, target: str) -> DetectionResult:
         """Run one CrewAI agent+task against the collected telemetry and
