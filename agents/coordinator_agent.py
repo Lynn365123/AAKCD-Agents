@@ -8,7 +8,7 @@ Unlike the other five agents, the Coordinator has no MITRE technique of
 its own and does not collect its own telemetry -- it reads the alert
 logs the other agents have already written (see project plan Section 6,
 Phase 3). In production this reads from Wazuh/OpenSearch instead of
-local JSONL files; for MVP/local testing it reads the same local log
+local JSON files; for MVP/local testing it reads the same local log
 files the other agents write to, which is why it must be run from the
 same working directory (or same VM) those logs were written in.
 
@@ -67,13 +67,17 @@ def collect_all_alerts() -> list[dict]:
 
 def group_by_target(alerts: list[dict]) -> dict[str, list[dict]]:
     """Group alerts by target_host, keeping only alerts with severity
-    at or above MIN_SEVERITY (skip clean/benign scan results)."""
+    at or above MIN_SEVERITY (skip clean/benign scan results).
+
+    NOTE: alert fields live at the top level of each alert dict (see
+    schema/alert_schema.py's Aug 2026 flattening fix) -- not under a
+    nested "data" key anymore.
+    """
     grouped: dict[str, list[dict]] = defaultdict(list)
     for alert in alerts:
-        data = alert.get("data", {})
-        if data.get("severity", 0) < MIN_SEVERITY:
+        if alert.get("severity", 0) < MIN_SEVERITY:
             continue
-        grouped[data.get("target_host", "unknown")].append(alert)
+        grouped[alert.get("target_host", "unknown")].append(alert)
     return grouped
 
 
@@ -81,11 +85,10 @@ def build_narrative_prompt(target_host: str, host_alerts: list[dict]) -> str:
     lines = []
     for a in sorted(host_alerts, key=lambda x: x.get("@timestamp", "")):
         agent = a["agent"]["name"]
-        data = a["data"]
         lines.append(
-            f"- [{a['@timestamp']}] {agent} ({data['mitre']['tactic']} / "
-            f"{data['mitre']['technique']}): {data['description']} "
-            f"(severity {data['severity']})"
+            f"- [{a['@timestamp']}] {agent} ({a['mitre']['tactic']} / "
+            f"{a['mitre']['technique']}): {a['description']} "
+            f"(severity {a['severity']})"
         )
     alert_list = "\n".join(lines)
     return (
@@ -136,9 +139,9 @@ def correlate_host(target_host: str, host_alerts: list[dict]) -> Alert:
         elif line.strip().upper().startswith("RECOMMENDED_ACTION:"):
             recommended_action = line.split(":", 1)[1].strip()
 
-    techniques = sorted({a["data"]["mitre"]["technique"] for a in host_alerts})
-    tactics = sorted({a["data"]["mitre"]["tactic"] for a in host_alerts})
-    max_severity = max(a["data"]["severity"] for a in host_alerts)
+    techniques = sorted({a["mitre"]["technique"] for a in host_alerts})
+    tactics = sorted({a["mitre"]["tactic"] for a in host_alerts})
+    max_severity = max(a["severity"] for a in host_alerts)
 
     return Alert(
         agent_id="060",

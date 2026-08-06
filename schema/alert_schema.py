@@ -7,6 +7,17 @@ source of truth the whole team imports -- do not build a local copy of
 this file per agent, or the schema will drift (this was the reference
 team's biggest integration headache).
 
+NOTE (Aug 2026): the alert fields used to be nested under a top-level
+"data" key. That collided with Wazuh's own alert-output format, which
+*also* wraps the entire original JSON object under a top-level "data"
+field when writing to alerts.json -- so our "data" key became "data.data"
+downstream. Wazuh's default ruleset already uses "data.data" elsewhere as
+a plain string field, so OpenSearch rejected our alert as a mapping
+conflict (mapper_parsing_exception) every time, even though the rule
+engine matched it correctly. Fix: our fields now live directly at the top
+level (alongside "agent" and "@timestamp"), so Wazuh's own wrapping
+produces clean "data.target_host", "data.severity", etc. -- no collision.
+
 Usage:
     from schema.alert_schema import Alert, MitreMapping, write_alert
 
@@ -75,18 +86,18 @@ class Alert:
                 "ip": self.agent_ip,
                 "name": self.agent_name,
             },
-            "data": {
-                "target_host": self.target_host,
-                "category": self.category,
-                "confidence": self.confidence,
-                "description": self.description,
-                "mitre": {
-                    "technique": self.mitre.technique,
-                    "tactic": self.mitre.tactic,
-                },
-                "severity": self.severity,
-                "recommended_action": self.recommended_action,
+            # Flattened directly onto the top level -- see module docstring
+            # for why this must NOT be nested under its own "data" key.
+            "target_host": self.target_host,
+            "category": self.category,
+            "confidence": self.confidence,
+            "description": self.description,
+            "mitre": {
+                "technique": self.mitre.technique,
+                "tactic": self.mitre.tactic,
             },
+            "severity": self.severity,
+            "recommended_action": self.recommended_action,
         }
 
     def to_json(self) -> str:
