@@ -1,11 +1,16 @@
 <group name="aakcd,">
 
   <!-- Base rule: catches any alert produced by an AAKCD detection agent.
-       AAKCD alerts are recognisable by the nested data.mitre.tactic field,
-       which no other default Wazuh log source produces. Wazuh's built-in
-       "json" decoder auto-wraps the whole incoming JSON object under a
-       "data" field, so our own schema's top-level "data" key becomes
-       data.* here -- e.g. data.severity, data.mitre.technique. -->
+       AAKCD alerts are recognisable by the top-level "category" field,
+       which no other default Wazuh log source produces. Note: our own
+       schema's fields (category, mitre.technique, severity, target_host,
+       etc.) live at the TOP LEVEL of the alert JSON -- not nested under
+       a "data" key -- because Wazuh's own alerts.json output format
+       separately wraps the whole original event under its own top-level
+       "data" key, and a nested "data" key in our schema would collide
+       with that (produced a "data.data" mapping conflict against a
+       pre-existing keyword field of that name -- see schema/alert_schema.py
+       module docstring for the full Aug 2026 postmortem). -->
   <rule id="100100" level="3">
     <decoded_as>json</decoded_as>
     <field name="category" type="pcre2">.+</field>
